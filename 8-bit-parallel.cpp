@@ -16,10 +16,13 @@ struct MMU
 	cachePage pages[2];
 };
 
+uint8_t pcIncrement = 0;
+
 uint8_t pc;
 uint8_t registers[8];
 
 uint8_t program[256];
+MMU memory;
 uint8_t cache[64];
 uint8_t ram[256];
 
@@ -46,18 +49,16 @@ int main(int argc, char* argv[])
 		printf("Error opening file\n");
 		return -1;
 	}
-	uint8_t smallerNumber = 256;
-	if (fileSize < 256)
+	uint8_t smallerNumber = 255;
+	if (fileSize < 255)
 	{
-		smallerNumber = (uint8_t)fileSize;
+		smallerNumber = (uint8_t)(fileSize - 1);
 	}
 	for (uint8_t index = 0; index < smallerNumber; index++)
 	{
 		program[index] = fgetc(programFile);
 	}
-
-	MMU memory;
-
+    pc = 0;
 	while (pc <= 253)
 	{
 		uint8_t opcode = program[pc];
@@ -108,37 +109,37 @@ int main(int argc, char* argv[])
 			// pass
 			// Passes the contents of register Arg1 to Arg2
 			registers[arg2] = registers[arg1];
-			pc += 3;
+			pcIncrement = 3;
 			break;
 		case (uint8_t)0x01:
 			// neg
 			// Negates the contents of Arg1 and saves to Arg2
 			registers[arg2] = ~registers[arg1];
-			pc += 3;
+			pcIncrement = 3;
 			break;
 		case (uint8_t)0x02:
 			// inc
 			// Increments the contents of register Arg1 and saves to Arg2
 			registers[arg2] = registers[arg1] + 1;
-			pc += 3;
+			pcIncrement = 3;
 			break;
 		case (uint8_t)0x03:
 			// dec
 			// Decrements the contents of register Arg1 and saves to Arg2
 			registers[arg2] = registers[arg1] - 1;
-			pc += 3;
+			pcIncrement = 3;
 			break;
 		case (uint8_t)0x06:
 			// add
 			// Adds Arg1 and Arg2 and saves to Arg3
 			registers[arg3] = registers[arg1] + registers[arg2];
-			pc += 4;
+			pcIncrement = 4;
 			break;
 		case (uint8_t)0x07:
 			// sub
 			// Subtracts Arg2 from Arg1 and saves to Arg3
 			registers[arg3] = registers[arg1] - registers[arg2];
-			pc += 4;
+			pcIncrement = 4;
 			break;
 
 
@@ -151,43 +152,43 @@ int main(int argc, char* argv[])
 			// AND
 			// Bitwise ANDs Arg1 and Arg2 and saves to Arg3
 			registers[arg3] = registers[arg1] & registers[arg2];
-			pc += 4;
+			pcIncrement = 4;
 			break;
 		case (uint8_t)0x09:
 			// NAND
 			// Bitwise NANDs Arg1 and Arg2 and saves to Arg3
 			registers[arg3] = ~(registers[arg1] & registers[arg2]);
-			pc += 4;
+			pcIncrement = 4;
 			break;
 		case (uint8_t)0x0a:
 			// NOR
 			// Bitwise NORs Arg1 and Arg2 and saves to Arg3
 			registers[arg3] = ~(registers[arg1] | registers[arg2]);
-			pc += 4;
+			pcIncrement = 4;
 			break;
 		case (uint8_t)0x0b:
 			// OR
 			// Bitwise ORs Arg1 and Arg2 and saves to Arg3
 			registers[arg3] = registers[arg1] | registers[arg2];
-			pc += 4;
+			pcIncrement = 4;
 			break;
 		case (uint8_t)0x0c:
 			// XOR
 			// Bitwise XORs Arg1 and Arg2 and saves to Arg3
 			registers[arg3] = registers[arg1] ^ registers[arg2];
-			pc += 4;
+			pcIncrement = 4;
 			break;
 		case (uint8_t)0x0d:
 			// XNOR
 			// Bitwise XNORs Arg1 and Arg2 and saves to Arg3
 			registers[arg3] = ~(registers[arg1] ^ registers[arg2]);
-			pc += 4;
+			pcIncrement = 4;
 			break;
 		case (uint8_t)0x0f:
 			// NOT
 			// Bitwise NOTs Arg1 and saves to Arg2
 			registers[arg2] = ~registers[arg1];
-			pc += 3;
+			pcIncrement = 3;
 			break;
 
 
@@ -208,13 +209,13 @@ int main(int argc, char* argv[])
 			{
 				registers[arg3] &= (uint8_t)~(0xff << (8 - registers[arg2]));
 			}
-			pc += 4;
+			pcIncrement = 4;
 			break;
 		case (uint8_t)0x11:
 			// shal
 			// Arithmetic shifts Arg1 left by Arg2 and saves to Arg3
 			registers[arg3] = registers[arg1] << registers[arg2];
-			pc += 4;
+			pcIncrement = 4;
 			break;
 		case (uint8_t)0x12:
 			// shlr
@@ -224,27 +225,27 @@ int main(int argc, char* argv[])
 			{
 				registers[arg3] |= (uint8_t)(0xff << (8 - registers[arg2]));
 			}
-			pc += 4;
+			pcIncrement = 4;
 			break;
 		case (uint8_t)0x13:
 			// shll
 			// Logical shifts Arg1 left by Arg2 and saves to Arg3
 			registers[arg3] = registers[arg1] << registers[arg2];
-			pc += 4;
+			pcIncrement = 4;
 			break;
 		case (uint8_t)0x14:
 			// shrr
 			// Rotate shifts Arg1 right by Arg2 and saves to Arg3
 			registers[arg3] = registers[arg1] >> registers[arg2];
 			registers[arg3] |= registers[arg1] << (8 - registers[arg2]);
-			pc += 4;
+			pcIncrement = 4;
 			break;
 		case (uint8_t)0x15:
 			// shrl
 			// Rotate shifts Arg1 left by Arg2 and saves to Arg3
 			registers[arg3] = registers[arg1] << registers[arg2];
 			registers[arg3] |= registers[arg1] >> (8 - registers[arg2]);
-			pc += 4;
+			pcIncrement = 4;
 			break;
 
 
@@ -264,7 +265,7 @@ int main(int argc, char* argv[])
 			{
 				registers[arg3] = 0;
 			}
-			pc += 4;
+			pcIncrement = 4;
 			break;
 		case (uint8_t)0x19:
 			// nequ
@@ -277,7 +278,7 @@ int main(int argc, char* argv[])
 			{
 				registers[arg3] = 0;
 			}
-			pc += 4;
+			pcIncrement = 4;
 			break;
 		case (uint8_t)0x1a:
 			// ules
@@ -290,7 +291,7 @@ int main(int argc, char* argv[])
 			{
 				registers[arg3] = 0;
 			}
-			pc += 4;
+			pcIncrement = 4;
 			break;
 		case (uint8_t)0x1b:
 			// ulee
@@ -303,7 +304,7 @@ int main(int argc, char* argv[])
 			{
 				registers[arg3] = 0;
 			}
-			pc += 4;
+			pcIncrement = 4;
 			break;
 		case (uint8_t)0x1c:
 			// sles
@@ -316,7 +317,7 @@ int main(int argc, char* argv[])
 			{
 				registers[arg3] = 0;
 			}
-			pc += 4;
+			pcIncrement = 4;
 			break;
 		case (uint8_t)0x1d:
 			// slee
@@ -329,7 +330,7 @@ int main(int argc, char* argv[])
 			{
 				registers[arg3] = 0;
 			}
-			pc += 4;
+			pcIncrement = 4;
 			break;
 
 
@@ -342,7 +343,7 @@ int main(int argc, char* argv[])
 			// imm
 			// Copies the value of Arg1 into Arg2
 			registers[arg2] = arg1;
-			pc += 3;
+			pcIncrement = 3;
 			break;
 		case (uint8_t)0x21:
 			// jmp
@@ -350,10 +351,11 @@ int main(int argc, char* argv[])
 			if (registers[arg2] != 0)
 			{
 				pc = registers[arg1];
+                pcIncrement = 0;
 			}
 			else
 			{
-				pc += 3;
+				pcIncrement = 3;
 			}
 			break;
 		case (uint8_t)0x22:
@@ -362,10 +364,11 @@ int main(int argc, char* argv[])
 			if (registers[arg2] != 0)
 			{
 				pc = arg1;
+                pcIncrement = 0;
 			}
 			else
 			{
-				pc += 3;
+				pcIncrement = 3;
 			}
 			break;
 
@@ -384,7 +387,7 @@ int main(int argc, char* argv[])
 			uint8_t cacheHit = 0;
 			for (uint8_t page = 0; page < memory.pageCount; page++)
 			{
-				if (targetPageAddress == memory.pages[page].address)
+				if (targetPageAddress == memory.pages[page].address && memory.pages[page].valid == 1)
 				{
 					cacheAddress = page;
 					cacheHit = 1;
@@ -440,7 +443,7 @@ int main(int argc, char* argv[])
 			{
 				memory.leastRecent = 0;
 			}
-			pc += 3;
+			pcIncrement = 3;
 		}
 		break;
 		case (uint8_t)0x41:
@@ -452,7 +455,7 @@ int main(int argc, char* argv[])
 			uint8_t writeCacheHit = 0;
 			for (uint8_t page = 0; page < memory.pageCount; page++)
 			{
-				if (writeTargetPageAddress == memory.pages[page].address)
+				if (writeTargetPageAddress == memory.pages[page].address && memory.pages[page].valid == 1)
 				{
 					writeCacheAddress = page;
 					writeCacheHit = 1;
@@ -509,7 +512,7 @@ int main(int argc, char* argv[])
 			{
 				memory.leastRecent = 0;
 			}
-			pc += 3;
+			pcIncrement = 3;
 		}
 		break;
 		default:
@@ -517,6 +520,11 @@ int main(int argc, char* argv[])
 			core_dump();
 			return -1;
 		}
+        if ((uint8_t)(pc + pcIncrement) < pc)
+        {
+            break;
+        }
+        pc += pcIncrement;
 	}
 	printf("PC reached end of program cache\n");
 	core_dump();
@@ -546,6 +554,18 @@ void core_dump()
 	{
 		printf("reg%01x = 0x%02x\n", reg & 0xff, registers[reg] & 0xff);
 	}
+
+    // print the contents of the MMU
+    printf("MMU:\n");
+    printf("| Least recent page accessed = 0x%02x\n", memory.leastRecent & 0xff);
+    printf("| Page count = 0x%02x\n", memory.pageCount & 0xff);
+    for (int page = 0; page < memory.pageCount; page++)
+    {
+        printf("|-Page number 0x%02x\n", page & 0xff);
+        printf("| |-Valid = %d\n", memory.pages[page].valid);
+        printf("| |-Address = 0x%02x\n", memory.pages[page].address & 0xff);
+        printf("| |-Dirty = %d\n", memory.pages[page].dirty);
+    }
 
 	// print the contents of the cache
 	printf("CACHE:\n");
